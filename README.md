@@ -1,19 +1,38 @@
-Elba
+# Elba
 ====
 
 Command-line interface for Amazon's ELB
 
+## Getting started
 
-## Proposed `~/.elba` config
+Elba relies on the excellent [Fog gem](http://fog.io/) to connect to Amazon's APIs.
+Start by setting up your `~/.fog`:
 
-This would be a dotfile with yaml mapping environments to loadbalancers:
+    # ~/.fog
+    :default:
+      :aws_access_key_id:      ABCDEF....
+      :aws_secret_access_key:  123456....
 
-    :defaults:
-      :staging:    'staging1'
-      :production: 'lb-production-1'
+## Available Commands
 
-## Proposed Commands
+    elba list
+    elba attach <server_name> [load-balancer]
+    elba detach <server_name>
 
-    elba status <load_balancer_name>
-    elba add <load_balancer_name> <server_name>
-    elba remove <load_balancer_name> <server_name>
+Adding or removing a server will prompt the user which load balancer they wish the server to be removed from. Your AWS Access Key defines which environments you have access to and thus which load balancers will be listed and available.
+
+## Examples
+
+    $ elba list
+    staging1
+    loadtest
+    affiliate-housetripdev-com
+    staging-housetripdev-de
+
+    $ elba add web[1-5]-r19.housetripdev.com [load balancer]
+    > add to which load balancer?
+      1. lb-production
+      2. staging1
+    $ 2
+    > Successfully added `web1-r19.housetripdev.com` to load balancer `staging1`
+    $
