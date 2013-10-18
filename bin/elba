@@ -20,6 +20,33 @@ module Elba
       end
     end
 
+    desc "attach INSTANCE", "Attaches INSTANCE to a Load Balancer"
+    def attach(instance = nil)
+      # check if instance is nil and raise
+      say "You need to provide an instance ID", :red and return unless instance
+      # check if multiple LB available
+      available_lbs = Elba::Client.new.load_balancers
+
+      lb = if available_lbs.size > 1
+        choices = available_lbs.map.with_index{ |lb,i| [i, lb.id] }
+        say "More than one Load Balancer available, pick one in the list", :yellow
+        print_table choices
+        choice = ask("Load Balancer:", :yellow, :limited_to => choices.map(&:last))
+
+        available_lbs.select {|lb| lb.id == choice}.first
+      else
+        available_lbs.first
+      end
+
+      say "Attaching #{instance} to #{lb.id}"
+      updated_lb = lb.register_instances instance
+      if updated_lb.instances.include?(instance)
+        say("#{instance} successfully added to #{lb.id}", :green)
+      else
+        say("Unable to add #{instance} to #{lb.id}", :red)
+      end
+    end
+
   end
 end
 
