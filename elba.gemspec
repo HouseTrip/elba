@@ -22,8 +22,7 @@ Gem::Specification.new do |s|
   s.add_dependency "fog"
   s.add_dependency "thor"
 
-  s.files        = `git ls-files`.split("\n")
-  s.test_files   = `git ls-files -- spec/*`.split("\n")
-  s.executables  = `git ls-files`.split("\n").map{|f| f =~ /^bin\/(.*)/ ? $1 : nil}.compact
+  s.files        = ["lib/client.rb", "lib/elba.rb"]
+  s.executables  = ["elba"]
   s.require_path = 'lib'
 end

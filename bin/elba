@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+require 'thor'
+
+lib = File.expand_path('lib')
+$:.unshift(lib) unless $:.include?(lib)
+
+require 'elba'
+require 'client'
+
+module Elba
+  class Cli < Thor
+    include Thor::Actions
+
+    desc "list", "Prints a list of available Load Balancers"
+    def list
+      say "Available Load Balancers:", nil, true
+      lbs = Elba::Client.new.load_balancers.map do |lb|
+        say lb.id
+        lb.instances.map { |i| say " - #{i}", :green }
+      end
+    end
+
+  end
+end
+
+Elba::Cli.start
