@@ -24,8 +24,9 @@ module Elba
     def attach(instance = nil)
       # check if instance is nil and raise
       say "You need to provide an instance ID", :red and return unless instance
+
       # check if multiple LB available
-      available_lbs = Elba::Client.new.load_balancers
+      available_lbs = get_available_load_balancers
 
       lb = if available_lbs.size > 1
         choices = available_lbs.map.with_index{ |lb,i| [i, lb.id] }
@@ -45,6 +46,37 @@ module Elba
       else
         say("Unable to add #{instance} to #{lb.id}", :red)
       end
+    end
+
+    desc "detach INSTANCE", "Detach INSTANCE from a Load Balancer"
+    def detach(instance = nil)
+      # check if instance is nil and raise
+      say "You need to provide an instance ID", :red and return unless instance
+
+      # find the load balancer the instance is attached to
+      available_lbs = get_available_load_balancers
+      lb_hash = {}
+      available_lbs.map{|lb| lb_hash[lb.id] = lb.instances}
+      attached_lb_id = lb_hash.select{ |k,v| v.include?(instance) }.keys.first
+      attached_lb = available_lbs.select {|lb| lb.id == attached_lb_id}.first
+
+      say "Instance #{instance} is not attached to a Load Balancer", :red and return unless attached_lb
+
+      # do the werk
+      say "Detaching #{instance} from #{attached_lb}"
+      updated_lb = attached_lb.deregister_instances instance
+
+      unless updated_lb.instances.include?(instance)
+        say("#{instance} successfully removed from #{attached_lb_id}", :green)
+      else
+        say("Unable to remove #{instance} from #{attached_lb_id}", :red)
+      end
+    end
+
+    private
+
+    def get_available_load_balancers
+      Elba::Client.new.load_balancers
     end
 
   end
