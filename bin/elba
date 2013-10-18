@@ -39,6 +39,11 @@ module Elba
         available_lbs.first
       end
 
+      if lb.instances.include?(instance)
+        say("#{instance} is already attached to #{lb.id}", :yellow)
+        return
+      end
+
       say "Attaching #{instance} to #{lb.id}"
       updated_lb = lb.register_instances instance
       if updated_lb.instances.include?(instance)
