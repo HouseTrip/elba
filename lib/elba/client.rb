@@ -35,6 +35,14 @@ module Elba
       elb.instances.include? instance
     end
 
+    def detach(instance = nil)
+      elb = load_balancers.find { |elb| elb.instances.include? instance }
+      raise LoadBalancerNotFound unless elb
+
+      elb.deregister_instances instance
+      elb.instances.include?(instance) ? nil : elb.id
+    end
+
     private
 
     # Parse config stored in ~/.fog

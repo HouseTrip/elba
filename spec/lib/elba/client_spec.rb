@@ -2,11 +2,17 @@ require 'spec_helper'
 require 'elba/client'
 
 describe Elba::Client do
-  describe 'new' do
+  describe 'interface' do
     it 'responds to attach' do
-      subject.respond_to?(:attach).should be_true
+      subject.should.respond_to? :attach
+    end
+
+    it 'responds to detach' do
+      subject.should.respond_to? :detach
     end
   end
+
+  let(:instance) { 'x-00000000' }
 
   describe '#attach' do
     context 'no load balancer specified' do
@@ -24,8 +30,7 @@ describe Elba::Client do
     end
 
     context 'load balancer specified' do
-      let(:instance) { 'x-00000000' }
-      let(:elb)      { double :id => 'elba-test', :instances => [] }
+      let(:elb) { double :id => 'elba-test', :instances => [] }
 
       before :each do
         subject.stub :load_balancers => [elb]
@@ -57,6 +62,36 @@ describe Elba::Client do
 
         subject.attach(instance, elb.id).should be_false
       end
+    end
+  end
+
+  describe '#detach' do
+    let(:elb) { double :id => 'elba-test', :instances => [instance] }
+
+    before :each do
+      subject.stub :load_balancers => [elb]
+    end
+
+    it 'raises an error if it can\'t find a load balancer for the isntance' do
+      subject.stub :load_balancers => []
+
+      expect {
+        subject.detach instance
+      }.to raise_error described_class::LoadBalancerNotFound
+    end
+
+    it 'returns the elb name if instance has been removed from its load balancer' do
+      elb.stub :deregister_instances do |instance|
+        elb.instances.delete instance
+      end
+
+      subject.detach(instance).should == elb.id
+    end
+
+    it 'returns nil if instance can\'t be removed from its load balancer' do
+      elb.stub :deregister_instances
+
+      subject.detach(instance).should be_nil
     end
   end
 end

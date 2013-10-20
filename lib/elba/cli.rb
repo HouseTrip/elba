@@ -75,34 +75,23 @@ module Elba
 
 
     desc "detach INSTANCE", "Detach INSTANCE from a Load Balancer"
+    long_desc <<-DESC
+      Detaches an INSTANCE from its load balancer.
+      Will warn if the instance isn't attached to any ELB
+
+    DESC
     def detach(instance = nil)
-      # check if instance is nil and raise
       say "You need to provide an instance ID", :red and return unless instance
 
-      # find the load balancer the instance is attached to
-      available_lbs = get_available_load_balancers
-      lb_hash = {}
-      available_lbs.map{|lb| lb_hash[lb.id] = lb.instances}
-      attached_lb_id = lb_hash.select{ |k,v| v.include?(instance) }.keys.first
-      attached_lb = available_lbs.select {|lb| lb.id == attached_lb_id}.first
-
-      say "Instance #{instance} is not attached to a Load Balancer", :red and return unless attached_lb
-
-      # do the werk
-      say "Detaching #{instance} from #{attached_lb}"
-      updated_lb = attached_lb.deregister_instances instance
-
-      unless updated_lb.instances.include?(instance)
-        say("#{instance} successfully removed from #{attached_lb_id}", :green)
-      else
-        say("Unable to remove #{instance} from #{attached_lb_id}", :red)
+      begin
+        if elb = client.detach instance
+          say "#{instance} successfully detached from #{elb}", :green
+        else
+          say "Unable to detach #{instance}", :red
+        end
+      rescue Client::LoadBalancerNotFound
+        say "#{instance} isn't attached to any known load balancer", :yellow and return
       end
-    end
-
-    private
-
-    def get_available_load_balancers
-      Elba::Client.new.load_balancers
     end
 
   end
