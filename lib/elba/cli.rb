@@ -18,7 +18,7 @@ module Elba
       end
 
       def load_balancers_with_index
-        @lbs_w_idx ||= load_balancers.map.with_index { |lb,i| [i, lb.id] }
+        load_balancers.map.with_index { |lb,i| [i, lb.id] }
       end
     end
 
@@ -33,7 +33,7 @@ module Elba
     option :instances, :type => :boolean, :aliases => :i
     def list
       say "#{load_balancers.size} Load Balancers found:", nil, true
-      lbs = load_balancers.map do |lb|
+      load_balancers.map do |lb|
         say " * #{lb.id}"
         lb.instances.map { |i| say "   - #{i}", :green } if options[:instances]
       end
@@ -50,7 +50,7 @@ module Elba
     DESC
     option :to, :type => :string, :aliases => :t
     def attach(instance = nil, load_balancer = options[:to])
-      say("You need to provide an instance ID", :red) and return unless instance
+      say "You need to provide an instance ID", :red and return unless instance
 
       begin
         if client.attach instance, load_balancer
