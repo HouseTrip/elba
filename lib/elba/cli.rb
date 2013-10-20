@@ -61,14 +61,15 @@ module Elba
       rescue Client::NoLoadBalancerAvailable
         say "No load balancer available", :red and return
       rescue Client::InstanceAlreadyAttached
-        say "#{instance} is already attached to #{lb.id}", :yellow and return
+        say "#{instance} is already attached to #{load_balancer}", :yellow and return
       rescue Client::LoadBalancerNotFound
         say "Load balancer not found" and return
       rescue Client::MultipleLoadBalancersAvailable
         say "More than one Load Balancer available, pick one in the list", :yellow
         print_table load_balancers_with_index
         choice = ask "Use:", :yellow, :limited_to => load_balancers_with_index.map(&:last)
-        client.attach instance, choice
+
+        attach instance, choice
       end
     end
 
