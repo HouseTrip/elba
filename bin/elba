@@ -1,5 +1,4 @@
 #!/usr/bin/env ruby
-require 'thor'
 
 lib = File.expand_path('lib')
 $:.unshift(lib) unless $:.include?(lib)
