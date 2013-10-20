@@ -13,12 +13,12 @@ module Elba
       end
 
       # Helper method to initialize the load_balancers
-      def load_balancers
+      def elbs
         client.load_balancers
       end
 
-      def load_balancers_with_index
-        load_balancers.map.with_index { |lb,i| [i, lb.id] }
+      def elbs_with_index
+        elbs.map.with_index { |lb,i| [i, lb.id] }
       end
     end
 
@@ -32,10 +32,10 @@ module Elba
     DESC
     option :instances, :type => :boolean, :aliases => :i
     def list
-      say "#{load_balancers.size} Load Balancers found:", nil, true
-      load_balancers.map do |lb|
-        say " * #{lb.id}"
-        lb.instances.map { |i| say "   - #{i}", :green } if options[:instances]
+      say "#{elbs.size} Load Balancers found:", nil, true
+      elbs.map do |elb|
+        say " * #{elb.id}"
+        elb.instances.map { |i| say "   - #{i}", :green } if options[:instances]
       end
     end
 
@@ -66,8 +66,8 @@ module Elba
         say "Load balancer not found" and return
       rescue Client::MultipleLoadBalancersAvailable
         say "More than one Load Balancer available, pick one in the list", :yellow
-        print_table load_balancers_with_index
-        choice = ask "Use:", :yellow, :limited_to => load_balancers_with_index.map(&:last)
+        print_table elbs_with_index
+        choice = ask "Use:", :yellow, :limited_to => elbs_with_index.map(&:last)
 
         attach instance, choice
       end
