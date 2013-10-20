@@ -16,13 +16,15 @@ Gem::Specification.new do |s|
 
   s.add_development_dependency "bundler"
   s.add_development_dependency "rspec"
+  s.add_development_dependency "rake"
   s.add_development_dependency "pry"
   s.add_development_dependency "pry-nav"
 
   s.add_dependency "fog"
   s.add_dependency "thor"
 
-  s.files        = ["lib/client.rb", "lib/elba.rb"]
-  s.executables  = ["elba"]
-  s.require_path = 'lib'
+  s.files        = `git ls-files`.split("\n")
+  s.test_files   = `git ls-files -- spec/*/*_spec*`.split("\n")
+  s.executables  = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
+  s.require_path = "lib"
 end
