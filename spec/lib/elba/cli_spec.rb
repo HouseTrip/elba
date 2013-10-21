@@ -76,6 +76,7 @@ describe Elba::Cli do
       elb2 = double :id => 'elba-test-2'
       client.stub(:load_balancers => [elb, elb2])
       client.should_receive(:attach).with('x-00000000', nil).and_raise(Elba::Client::MultipleLoadBalancersAvailable)
+      client.should_receive(:attach).with('x-00000000', 'elba-test-2').and_return(true)
 
       expect($stdin).to receive(:gets).and_return('1')
 
