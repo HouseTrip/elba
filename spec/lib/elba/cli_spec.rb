@@ -44,7 +44,7 @@ describe Elba::Cli do
         client.stub :attach => elb.id
 
         capture(:stdout) {
-          subject.attach instance, elb.id
+          subject.attach instance
         }.should include 'successfully added'
       end
 
@@ -60,7 +60,7 @@ describe Elba::Cli do
         client.stub(:attach).and_raise(Elba::Client::InstanceAlreadyAttached)
 
         capture(:stdout) {
-          subject.attach instance, elb.id
+          subject.attach instance
         }.should include 'already attached'
       end
 
@@ -68,7 +68,7 @@ describe Elba::Cli do
         client.stub(:attach).and_raise(Elba::Client::LoadBalancerNotFound)
 
         capture(:stdout) {
-          subject.attach instance, 'unknown'
+          subject.attach instance
         }.should include 'ELB not found'
       end
 
@@ -82,7 +82,7 @@ describe Elba::Cli do
         expect($stdin).to receive(:gets).and_return('1')
 
         output = capture(:stdout) do
-          subject.attach instance
+          subject.attach 'x-00000000'
         end
 
         output.should include('More than one ELB available, pick one in the list')
@@ -92,13 +92,13 @@ describe Elba::Cli do
     end
 
     context "with multiple instances" do
-      let(:instances) { ['x-00000000', 'x-00000001']  }
 
       it 'confirms success when attaching multiple instances to an ELB' do
         client.stub :attach => elb.id
 
         output = capture(:stdout) {
-          subject.attach instances, elb.id
+          subject.stub(:options).and_return({:to => 'elba-test'})
+          subject.attach 'x-00000000', 'x-00000001'
         }
 
         output.should include 'x-00000000 successfully added to elba-test'
@@ -112,7 +112,8 @@ describe Elba::Cli do
         client.should_receive(:attach).with('x-00000001', 'elba-test').and_return(true)
 
         output = capture(:stdout) {
-          subject.attach instances, elb.id
+          subject.stub(:options).and_return({:to => 'elba-test'})
+          subject.attach 'x-00000000', 'x-00000001'
         }
 
         output.should include 'x-00000000 is already attached to elba-test'

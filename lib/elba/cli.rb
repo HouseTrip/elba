@@ -54,12 +54,9 @@ module Elba
 
     DESC
     option :to, :type => :string, :aliases => :t
-    def attach(instance = nil, load_balancer = options[:to])
-      if instance.is_a?(Array)
-        instance.each { |i| attach_instance(i, load_balancer) }
-      else
-        attach_instance(instance, load_balancer)
-      end
+    def attach(*instances)
+      load_balancer = options[:to]
+      instances.each { |i| attach_instance(i, load_balancer) }
     end
 
 
@@ -83,7 +80,7 @@ module Elba
     end
 
     private
-    def attach_instance(instance = nil, load_balancer = options[:to])
+    def attach_instance(instance = nil, load_balancer = nil)
       say "You need to provide an instance ID", :red and return unless instance
 
       if client.attach instance, load_balancer
@@ -102,7 +99,7 @@ module Elba
       print_table elbs_with_index
       choice = ask "Use:", :yellow, :limited_to => elbs_with_index.map(&:first).map(&:to_s)
 
-      attach instance, find_elb_from_choice(choice)
+      attach_instance instance, find_elb_from_choice(choice)
     end
 
   end
