@@ -72,13 +72,20 @@ describe Elba::Cli do
     end
 
     it 'asks when no ELB given and more than 1 available' do
-      client.stub(:attach).and_raise(Elba::Client::MultipleLoadBalancersAvailable)
-      subject.stub :ask => 0
-      subject.stub :find_elb_from_choice => elb.id
+      # simulate our mock client having two load balancers and raising the appropriate error.
+      elb2 = double :id => 'elba-test-2'
+      client.stub(:load_balancers => [elb, elb2])
+      client.should_receive(:attach).with('x-00000000', nil).and_raise(Elba::Client::MultipleLoadBalancersAvailable)
 
-      capture(:stdout) {
+      expect($stdin).to receive(:gets).and_return('1')
+
+      output = capture(:stdout) do
         subject.attach instance
-      }.should include 'pick one in the list'
+      end
+
+      output.should include('More than one ELB available, pick one in the list')
+      output.should include('0  elba-test')
+      output.should include('1  elba-test-2')
     end
   end
 end

@@ -54,10 +54,11 @@ module Elba
 
     DESC
     option :to, :type => :string, :aliases => :t
-    def attach instance = nil, load_balancer = options[:to]
+    def attach(instance = nil, load_balancer = options[:to])
       say "You need to provide an instance ID", :red and return unless instance
 
-      if client.attach instance, load_balancer
+      if client.attach(instance, load_balancer)
+        p [:lb, load_balancer]
         say "#{instance} successfully added to #{load_balancer}", :green
       else
         say "Unable to add #{instance} to #{load_balancer}", :red
@@ -69,11 +70,16 @@ module Elba
     rescue Client::LoadBalancerNotFound
       say "ELB not found", :yellow and return
     rescue Client::MultipleLoadBalancersAvailable
+      begin
       say "More than one ELB available, pick one in the list", :yellow
       print_table elbs_with_index
       choice = ask "Use:", :yellow, :limited_to => elbs_with_index.map(&:first).map(&:to_s)
-
+      p [:instance, instance]
+      p [:load_balancer, load_balancer]
       attach instance, find_elb_from_choice(choice)
+      rescue Exception => e
+        p [:expection, e]
+      end
     end
 
 
