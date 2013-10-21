@@ -89,4 +89,19 @@ describe Elba::Cli do
       output.should include('1  elba-test-2')
     end
   end
+
+  describe "attaching multiple instances to a load balancer" do
+    let(:instances) { ['x-00000000', 'x-00000001']  }
+
+    it 'confirms success when attaching multiple instances to an ELB' do
+      client.stub :attach => elb.id
+
+      output = capture(:stdout) {
+        subject.attach instances, elb.id
+      }
+
+      output.should include 'x-00000000 successfully added to elba-test'
+      output.should include 'x-00000001 successfully added to elba-test'
+    end
+  end
 end
