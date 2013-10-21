@@ -36,6 +36,62 @@ describe Elba::Cli do
     end
   end
 
+  describe "detach" do
+
+    context "for a single instance" do
+      it "notifies after successfuly detaching an instance" do
+        client.stub :detach => elb.id
+
+        capture(:stdout) {
+          subject.detach 'x-00000000'
+        }.should include 'x-00000000 successfully detached from elba-test'
+      end
+
+      it "warns it can't detach an instance" do
+        client.stub(:detach).and_return(false)
+
+        capture(:stdout) {
+          subject.detach 'x-00000000'
+        }.should include 'Unable to detach x-00000000'
+      end
+
+      it "warns when the load balancer is a figment of someone's imagination" do
+        client.stub(:detach).and_raise(Elba::Client::LoadBalancerNotFound)
+
+        capture(:stdout) {
+          subject.detach 'x-00000000'
+        }.should include "x-00000000 isn't attached to any known ELB"
+      end
+    end
+
+    context "detaching multiple instances" do
+      it 'confirms success when detaching multiple instances to an ELB' do
+        client.should_receive(:detach).with('x-00000000').and_return(elb.id)
+        client.should_receive(:detach).with('x-00000001').and_return(elb.id)
+
+        output = capture(:stdout) {
+          subject.detach 'x-00000000', 'x-00000001'
+        }
+
+        output.should include 'x-00000000 successfully detached from elba-test'
+        output.should include 'x-00000001 successfully detached from elba-test'
+      end
+
+      it "detaches an instance and warns when we have 2 instances, with 1 already attached" do
+        client.should_receive(:detach).with('x-00000000').and_raise(Elba::Client::LoadBalancerNotFound)
+        client.should_receive(:detach).with('x-00000001').and_return(elb.id)
+
+        output = capture(:stdout) {
+          subject.detach 'x-00000000', 'x-00000001'
+        }
+
+        output.should include "x-00000000 isn't attached to any known ELB"
+        output.should include 'x-00000001 successfully detached from elba-test'
+      end
+    end
+
+  end
+
   describe 'attach' do
     let(:instance) { 'x-00000000' }
 

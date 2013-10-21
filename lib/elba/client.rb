@@ -23,11 +23,19 @@ module Elba
       @lbs ||= @connection.load_balancers
     end
 
-    def attach(*instances, load_balancer)
-      instances.all? { |instance| attach_instance(instance, load_balancer) == true }
+    def attach(instance, load_balancer)
+      raise NoLoadBalancerAvailable if !load_balancer && !load_balancers.any?
+      raise MultipleLoadBalancersAvailable if !load_balancer && load_balancers.size > 1
+
+      elb = load_balancers.find { |elb| elb.id =~ /#{load_balancer}/ }
+      raise LoadBalancerNotFound unless elb
+      raise InstanceAlreadyAttached if elb.instances.include? instance
+
+      elb.register_instances instance
+      elb.instances.include? instance
     end
 
-    def detach(instance = nil)
+    def detach(instance)
       elb = load_balancers.find { |elb| elb.instances.include? instance }
       raise LoadBalancerNotFound unless elb
 
@@ -36,18 +44,6 @@ module Elba
     end
 
     private
-
-    def attach_instance(instance=nil, lb=nil)
-      raise NoLoadBalancerAvailable if !lb && !load_balancers.any?
-      raise MultipleLoadBalancersAvailable if !lb && load_balancers.size > 1
-
-      elb = load_balancers.find { |elb| elb.id =~ /#{lb}/ }
-      raise LoadBalancerNotFound unless elb
-      raise InstanceAlreadyAttached if elb.instances.include? instance
-
-      elb.register_instances instance
-      elb.instances.include? instance
-    end
 
     # Parse config stored in ~/.fog
     # Use :default environment

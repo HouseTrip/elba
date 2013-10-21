@@ -66,17 +66,8 @@ module Elba
       Will warn if the instance isn't attached to any ELB
 
     DESC
-    def detach instance = nil
-      say "You need to provide an instance ID", :red and return unless instance
-
-      elb = client.detach instance
-      if elb
-        say "#{instance} successfully detached from #{elb}", :green
-      else
-        say "Unable to detach #{instance}", :red
-      end
-    rescue Client::LoadBalancerNotFound
-      say "#{instance} isn't attached to any known ELB", :yellow and return
+    def detach(*instances)
+      instances.map {|instance| detach_instance(instance) }
     end
 
     private
@@ -100,6 +91,19 @@ module Elba
       choice = ask "Use:", :yellow, :limited_to => elbs_with_index.map(&:first).map(&:to_s)
 
       attach_instance instance, find_elb_from_choice(choice)
+    end
+
+    def detach_instance(instance)
+      say "You need to provide an instance ID", :red and return unless instance
+
+      elb = client.detach instance
+      if elb
+        say "#{instance} successfully detached from #{elb}", :green
+      else
+        say "Unable to detach #{instance}", :red
+      end
+    rescue Client::LoadBalancerNotFound
+      say "#{instance} isn't attached to any known ELB", :yellow and return
     end
 
   end
