@@ -23,11 +23,11 @@ module Elba
       @lbs ||= @connection.load_balancers
     end
 
-    def attach(instance = nil, lb = nil)
-      raise NoLoadBalancerAvailable if !lb && !load_balancers.any?
-      raise MultipleLoadBalancersAvailable if !lb && load_balancers.size > 1
+    def attach(instance, load_balancer)
+      raise NoLoadBalancerAvailable if !load_balancer && !load_balancers.any?
+      raise MultipleLoadBalancersAvailable if !load_balancer && load_balancers.size > 1
 
-      elb = load_balancers.find { |elb| elb.id =~ /#{lb}/ }
+      elb = load_balancers.find { |elb| elb.id =~ /#{load_balancer}/ }
       raise LoadBalancerNotFound unless elb
       raise InstanceAlreadyAttached if elb.instances.include? instance
 
@@ -35,7 +35,7 @@ module Elba
       elb.instances.include? instance
     end
 
-    def detach(instance = nil)
+    def detach(instance)
       elb = load_balancers.find { |elb| elb.instances.include? instance }
       raise LoadBalancerNotFound unless elb
 

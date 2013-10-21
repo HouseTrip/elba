@@ -19,12 +19,12 @@ describe Elba::Client do
 
       it 'raises an error if no load balancers are available' do
         subject.stub :load_balancers => []
-        expect { subject.attach }.to raise_error described_class::NoLoadBalancerAvailable
+        expect { subject.attach(nil, nil) }.to raise_error described_class::NoLoadBalancerAvailable
       end
 
       it 'raises an error if more than 1 load balancers available' do
         subject.stub :load_balancers => [double, double]
-        expect { subject.attach }.to raise_error described_class::MultipleLoadBalancersAvailable
+        expect { subject.attach(nil, nil) }.to raise_error described_class::MultipleLoadBalancersAvailable
       end
 
     end
