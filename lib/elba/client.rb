@@ -23,12 +23,8 @@ module Elba
       @lbs ||= @connection.load_balancers
     end
 
-    def attach(instance = nil, lb = nil)
-      if instance.is_a?(Array)
-        instance.each { |i| attach_instance(i, lb) }
-      else
-        attach_instance(instance, lb)
-      end
+    def attach(*instances, load_balancer)
+      instances.all? { |instance| attach_instance(instance, load_balancer) == true }
     end
 
     def detach(instance = nil)
