@@ -1,11 +1,13 @@
 # encoding: UTF-8
 
 require 'rspec'
+require 'fog' unless defined? Fog
 
 RSpec.configure do |config|
   config.before(:each) do
-    $0 = "elba"          # Pretend we're running as 'homedir'
+    $0 = "elba"          # Pretend we're running as 'elba'
     ARGV.clear
+    Fog.mock!
   end
 
   # Captures the output for analysis later

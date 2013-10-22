@@ -1,54 +1,56 @@
 # encoding: UTF-8
 
-require 'fog'
-require 'yaml'
-
 module Elba
   class Client
-
-    DEFAULT_PARAMS = {
-      region: 'eu-west-1'
-    }
 
     class NoLoadBalancerAvailable        < StandardError; end
     class MultipleLoadBalancersAvailable < StandardError; end
     class LoadBalancerNotFound           < StandardError; end
     class InstanceAlreadyAttached        < StandardError; end
 
-    def initialize
-      @connection = Fog::AWS::ELB.new DEFAULT_PARAMS.merge(parse_config)
+    attr_reader :connection
+
+    def initialize(connection = nil)
+      raise ArgumentError.new "Missing connection" unless connection
+      @connection = connection
     end
 
     def load_balancers
-      @lbs ||= @connection.load_balancers
+      @lbs ||= connection.load_balancers
     end
 
     def attach(instance, load_balancer)
       raise NoLoadBalancerAvailable if !load_balancer && !load_balancers.any?
       raise MultipleLoadBalancersAvailable if !load_balancer && load_balancers.size > 1
 
-      elb = load_balancers.find { |elb| elb.id =~ /#{load_balancer}/ }
-      raise LoadBalancerNotFound unless elb
-      raise InstanceAlreadyAttached if elb.instances.include? instance
+      on_elb(load_balancer) do |elb|
+        raise InstanceAlreadyAttached if elb.instances.include? instance
 
-      elb.register_instances instance
-      elb.instances.include? instance
+        elb.register_instances instance
+        elb.instances.include? instance
+      end
     end
 
     def detach(instance)
-      elb = load_balancers.find { |elb| elb.instances.include? instance }
-      raise LoadBalancerNotFound unless elb
-
-      elb.deregister_instances instance
-      elb.instances.include?(instance) ? nil : elb.id
+      on_elb(instance) do |elb|
+        elb.deregister_instances instance
+        elb.instances.include?(instance) ? nil : elb.id
+      end
     end
+
 
     private
 
-    # Parse config stored in ~/.fog
-    # Use :default environment
-    def parse_config(env = :default)
-      @config ||= YAML.load(File.open File.expand_path('.fog', Dir.home))[env]
+    def on_elb(name)
+      # instances always start with 'i-'
+      elb = if name =~ /^i-/
+        load_balancers.find { |lb| lb.instances.include? name }
+      else
+        load_balancers.find { |lb| lb.id =~ /#{name}/ }
+      end
+      raise LoadBalancerNotFound unless elb
+      yield elb if block_given?
     end
+
   end
 end
