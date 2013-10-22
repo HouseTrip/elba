@@ -23,20 +23,34 @@ module Elba
       raise NoLoadBalancerAvailable if !load_balancer && !load_balancers.any?
       raise MultipleLoadBalancersAvailable if !load_balancer && load_balancers.size > 1
 
-      elb = load_balancers.find { |elb| elb.id =~ /#{load_balancer}/ }
-      raise LoadBalancerNotFound unless elb
-      raise InstanceAlreadyAttached if elb.instances.include? instance
+      on_elb(load_balancer) do |elb|
+        raise InstanceAlreadyAttached if elb.instances.include? instance
 
-      elb.register_instances instance
-      elb.instances.include? instance
+        elb.register_instances instance
+        elb.instances.include? instance
+      end
     end
 
     def detach(instance)
-      elb = load_balancers.find { |elb| elb.instances.include? instance }
-      raise LoadBalancerNotFound unless elb
-
-      elb.deregister_instances instance
-      elb.instances.include?(instance) ? nil : elb.id
+      on_elb(instance) do |elb|
+        elb.deregister_instances instance
+        elb.instances.include?(instance) ? nil : elb.id
+      end
     end
+
+
+    private
+
+    def on_elb(name)
+      # instances always start with 'i-'
+      elb = if name =~ /^i-/
+        load_balancers.find { |lb| lb.instances.include? name }
+      else
+        load_balancers.find { |lb| lb.id =~ /#{name}/ }
+      end
+      raise LoadBalancerNotFound unless elb
+      yield elb if block_given?
+    end
+
   end
 end
