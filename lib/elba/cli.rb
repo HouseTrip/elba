@@ -1,5 +1,9 @@
+# encoding: UTF-8
+
 require 'thor'
-require 'elba'
+require 'yaml'
+require 'fog'
+
 require 'elba/client'
 
 module Elba
@@ -8,18 +12,27 @@ module Elba
     include Thor::Actions
 
     no_tasks do
-      # A permanent {Client}
-      def client
-        @client ||= Client.new
+      # Parse config stored in ~/.fog
+      # Use :default environment
+      def config(env = :default)
+        @config ||= {}.tap do |c|
+          c.merge! YAML.load(File.open File.expand_path('.fog', Dir.home))[env]
+          c.merge! :region => 'eu-west-1'
+        end
       end
 
-      # Helper method to initialize the load_balancers
+      # A permanent access to a Client
+      def client
+        @client ||= Client.new Fog::AWS::ELB.new(config)
+      end
+
+      # Helper method to store the ELBs
       def elbs
         client.load_balancers
       end
 
       def elbs_with_index
-        elbs.map.with_index { |lb,i| [i, lb.id] }
+        elbs.map.with_index { |elb, i| [i, elb.id] }
       end
 
       def find_elb_from_choice choice

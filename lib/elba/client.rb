@@ -1,26 +1,22 @@
 # encoding: UTF-8
 
-require 'fog'
-require 'yaml'
-
 module Elba
   class Client
-
-    DEFAULT_PARAMS = {
-      region: 'eu-west-1'
-    }
 
     class NoLoadBalancerAvailable        < StandardError; end
     class MultipleLoadBalancersAvailable < StandardError; end
     class LoadBalancerNotFound           < StandardError; end
     class InstanceAlreadyAttached        < StandardError; end
 
-    def initialize
-      @connection = Fog::AWS::ELB.new DEFAULT_PARAMS.merge(parse_config)
+    attr_reader :connection
+
+    def initialize(connection = nil)
+      raise ArgumentError.new "Missing connection" unless connection
+      @connection = connection
     end
 
     def load_balancers
-      @lbs ||= @connection.load_balancers
+      @lbs ||= connection.load_balancers
     end
 
     def attach(instance, load_balancer)
@@ -41,14 +37,6 @@ module Elba
 
       elb.deregister_instances instance
       elb.instances.include?(instance) ? nil : elb.id
-    end
-
-    private
-
-    # Parse config stored in ~/.fog
-    # Use :default environment
-    def parse_config(env = :default)
-      @config ||= YAML.load(File.open File.expand_path('.fog', Dir.home))[env]
     end
   end
 end

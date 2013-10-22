@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    elba (0.0.3)
+    elba (0.0.4)
       fog
       thor
 
