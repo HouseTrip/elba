@@ -29,14 +29,12 @@ module Elba
         raise InstanceAlreadyAttached if elb.instances.include? instance
 
         elb.register_instances instance
-        elb.instances.include? instance
       end
     end
 
     def detach(instance)
       on_elb instance do |elb|
         elb.deregister_instances instance
-        elb.instances.include?(instance) ? nil : elb.id
       end
     end
 
@@ -53,6 +51,7 @@ module Elba
       raise LoadBalancerNotFound unless elb
 
       yield elb if block_given?
+      elb
     end
 
     def find_load_balancer(object)

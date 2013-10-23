@@ -1,13 +1,23 @@
 require 'spec_helper'
 require 'elba/cli'
+require 'support/mocks'
 
 describe Elba::Cli do
+  include Elba::Mocks
 
-  let(:elb)    { double :id => 'elba-test' }
-  let(:client) { double :load_balancers => [elb] }
+  let(:elb) do
+    test_elb_connection.tap do |c|
+      # creates an ELB if none have been created yet
+      c.create_load_balancer([test_region], 'elba-test') if c.load_balancers.empty?
+    end.load_balancers.last
+  end
+
+  let(:instance1) { test_ec2_connection.servers.create region: test_region }
+  let(:instance2) { test_ec2_connection.servers.create region: test_region }
 
   before :each do
-    subject.stub :client => client
+    test_client.stub load_balancers: [elb]
+    subject.stub client: test_client
   end
 
   describe 'help' do
@@ -21,159 +31,140 @@ describe Elba::Cli do
   end
 
   describe 'list' do
-    let(:instances) { ['x-00000000', 'x-00000001'] }
-
     before :each do
-      elb.stub :instances => instances
+      subject.client.load_balancers[0].stub instances: [instance1.id, instance2.id]
     end
 
     it 'prints the list of available ELB' do
       capture(:stdout) { subject.list }.should include 'elba-test'
     end
 
-    it 'with -i option, prints the list of available ELB with instances attached' do
-      (capture(:stdout) { subject.list '-i' }.split & instances).should eql instances
+    it '--instances prints the instances attached to each ELB' do
+      (capture(:stdout) { subject.list '--instances' }.split & elb.instances).should eql elb.instances
     end
   end
 
-  describe "detach" do
+  describe 'detach' do
+    context 'a single instance' do
 
-    context "for a single instance" do
-      it "notifies after successfuly detaching an instance" do
-        client.stub :detach => elb.id
-
-        capture(:stdout) {
-          subject.detach 'x-00000000'
-        }.should include 'x-00000000 successfully detached from elba-test'
+      before :each do
+        subject.client.load_balancers[0].stub instances: [instance1.id]
       end
 
-      it "warns it can't detach an instance" do
-        client.stub(:detach).and_return(false)
+      it "notifies when successfuly detaching an instance" do
+        capture(:stdout) {
+          subject.detach instance1.id
+        }.should include "#{instance1.id} successfully detached from elba-test"
+      end
+
+      it "warns if it can't detach an instance" do
+        subject.client.stub detach: false
 
         capture(:stdout) {
-          subject.detach 'x-00000000'
-        }.should include 'Unable to detach x-00000000'
+          subject.detach instance1.id
+        }.should include "Unable to detach #{instance1.id}"
       end
 
       it "warns when the load balancer is a figment of someone's imagination" do
-        client.stub(:detach).and_raise(Elba::Client::LoadBalancerNotFound)
+        subject.client.stub(:detach).and_raise(Elba::Client::LoadBalancerNotFound)
 
         capture(:stdout) {
-          subject.detach 'x-00000000'
-        }.should include "x-00000000 isn't attached to any known ELB"
+          subject.detach instance1.id
+        }.should include "#{instance1.id} isn't attached to any known ELB"
       end
     end
 
-    context "detaching multiple instances" do
+    context 'multiple instances' do
       it 'confirms success when detaching multiple instances to an ELB' do
-        client.should_receive(:detach).with('x-00000000').and_return(elb.id)
-        client.should_receive(:detach).with('x-00000001').and_return(elb.id)
+        subject.client.should_receive(:detach).with(instance1.id).and_return(elb)
+        subject.client.should_receive(:detach).with(instance2.id).and_return(elb)
 
         output = capture(:stdout) {
-          subject.detach 'x-00000000', 'x-00000001'
+          subject.detach instance1.id, instance2.id
         }
 
-        output.should include 'x-00000000 successfully detached from elba-test'
-        output.should include 'x-00000001 successfully detached from elba-test'
+        output.should include "#{instance1.id} successfully detached from elba-test"
+        output.should include "#{instance2.id} successfully detached from elba-test"
       end
 
       it "detaches an instance and warns when we have 2 instances, with 1 already attached" do
-        client.should_receive(:detach).with('x-00000000').and_raise(Elba::Client::LoadBalancerNotFound)
-        client.should_receive(:detach).with('x-00000001').and_return(elb.id)
+        subject.client.should_receive(:detach).with(instance1.id).and_raise(Elba::Client::LoadBalancerNotFound)
+        subject.client.should_receive(:detach).with(instance2.id).and_return(elb)
 
         output = capture(:stdout) {
-          subject.detach 'x-00000000', 'x-00000001'
+          subject.detach instance1.id, instance2.id
         }
 
-        output.should include "x-00000000 isn't attached to any known ELB"
-        output.should include 'x-00000001 successfully detached from elba-test'
+        output.should include "#{instance1.id} isn't attached to any known ELB"
+        output.should include "#{instance2.id} successfully detached from elba-test"
       end
     end
 
   end
 
   describe 'attach' do
-    let(:instance) { 'x-00000000' }
-
-    context "with single instance" do
+    context 'a single instance' do
       it 'confirms success when attaching an instance to an ELB' do
-        client.stub :attach => elb.id
-
         capture(:stdout) {
-          subject.attach instance
+          subject.attach instance1.id
         }.should include 'successfully added'
       end
 
       it 'exits with a message when no ELB available' do
-        client.stub(:attach).and_raise(Elba::Client::NoLoadBalancerAvailable)
+        subject.client.stub(:attach).and_raise(Elba::Client::NoLoadBalancerAvailable)
 
         capture(:stdout) {
-          subject.attach instance
+          subject.attach instance1.id
         }.should include 'No ELB available'
       end
 
       it 'warns if instance is already attached to an ELB' do
-        client.stub(:attach).and_raise(Elba::Client::InstanceAlreadyAttached)
+        subject.client.stub(:attach).and_raise(Elba::Client::InstanceAlreadyAttached)
 
         capture(:stdout) {
-          subject.attach instance
+          subject.attach instance1.id
         }.should include 'already attached'
       end
 
       it 'warns when given ELB is not found' do
-        client.stub(:attach).and_raise(Elba::Client::LoadBalancerNotFound)
+        subject.client.stub(:attach).and_raise(Elba::Client::LoadBalancerNotFound)
 
         capture(:stdout) {
-          subject.attach instance
+          subject.attach instance1.id
         }.should include 'ELB not found'
-      end
-
-      it 'asks when no ELB given and more than 1 available' do
-        # simulate our mock client having two load balancers and raising the appropriate error.
-        elb2 = double :id => 'elba-test-2'
-        client.stub(:load_balancers => [elb, elb2])
-        client.should_receive(:attach).with('x-00000000', nil).and_raise(Elba::Client::MultipleLoadBalancersAvailable)
-        client.should_receive(:attach).with('x-00000000', 'elba-test-2').and_return(true)
-
-        expect($stdin).to receive(:gets).and_return('1')
-
-        output = capture(:stdout) do
-          subject.attach 'x-00000000'
-        end
-
-        output.should include('More than one ELB available, pick one in the list')
-        output.should include('0  elba-test')
-        output.should include('1  elba-test-2')
       end
     end
 
-    context "with multiple instances" do
-
+    context 'multiple instances' do
       it 'confirms success when attaching multiple instances to an ELB' do
-        client.stub :attach => elb.id
-
         output = capture(:stdout) {
-          subject.stub(:options).and_return({:to => 'elba-test'})
-          subject.attach 'x-00000000', 'x-00000001'
+          subject.stub(:options).and_return({:to => elb.id})
+          subject.attach instance1.id, instance2.id
         }
 
-        output.should include 'x-00000000 successfully added to elba-test'
-        output.should include 'x-00000001 successfully added to elba-test'
+        output.should include "#{instance1.id} successfully added to elba-test"
+        output.should include "#{instance2.id} successfully added to elba-test"
       end
 
-      it "attaches an instance and warns when we have 2 instances, with 1 already attached" do
-        client.stub :attach => elb.id
+      it 'attaches an instance and warns when we have 2 instances, with 1 already attached' do
+        subject.client.stub :attach => elb.id
 
-        client.should_receive(:attach).with('x-00000000', 'elba-test').and_raise(Elba::Client::InstanceAlreadyAttached)
-        client.should_receive(:attach).with('x-00000001', 'elba-test').and_return(true)
+        subject.client.should_receive(:attach).with(instance1.id, 'elba-test').and_raise(Elba::Client::InstanceAlreadyAttached)
+        subject.client.should_receive(:attach).with(instance2.id, 'elba-test').and_return(true)
 
         output = capture(:stdout) {
           subject.stub(:options).and_return({:to => 'elba-test'})
-          subject.attach 'x-00000000', 'x-00000001'
+          subject.attach instance1.id, instance2.id
         }
 
-        output.should include 'x-00000000 is already attached to elba-test'
-        output.should include 'x-00000001 successfully added to elba-test'
+        output.should include "#{instance1.id} is already attached to elba-test"
+        output.should include "#{instance2.id} successfully added to elba-test"
+      end
+
+      it 'requires to specify the ELB' do
+        output = capture(:stdout) {
+          subject.attach instance1.id, instance2.id
+        }.should include "You must specify which ELB to use when attaching mulitple instances"
       end
     end
   end

@@ -3,10 +3,6 @@ require 'elba/client'
 require 'support/mocks'
 
 describe Elba::Client do
-  # gives you access to
-  # - test_elb_connection: a connection to ELB
-  # - test_ec2_connection: a connection to EC2
-  # - test_region:         the region used for test, 'eu-west-1' here
   include Elba::Mocks
 
   let(:elb) do
@@ -33,6 +29,7 @@ describe Elba::Client do
   describe '#attach' do
     context 'no load balancer specified' do
       it 'raises an error if no load balancers are available' do
+        subject.stub load_balancers: []
         expect { subject.attach(nil, nil) }.to raise_error described_class::NoLoadBalancerAvailable
       end
 
@@ -64,9 +61,10 @@ describe Elba::Client do
       end
 
       it 'returns false if instance can\'t be added' do
-        elb.class.any_instance.stub :register_instances
+        # mock failure of register_instances
+        elb.class.any_instance.should_receive(:register_instances).and_raise(RuntimeError)
 
-        subject.attach(instance.id, elb.id).should be_false
+        expect { subject.attach(instance.id, elb.id) }.to raise_error
       end
     end
   end
@@ -78,17 +76,17 @@ describe Elba::Client do
       }.to raise_error described_class::LoadBalancerNotFound
     end
 
-    it 'returns the elb name if instance has been removed from its load balancer' do
+    it 'returns the elb on success' do
       subject.attach(instance.id, elb.id)
 
-      subject.detach(instance.id).should eql elb.id
+      subject.detach(instance.id).should be_a(Fog::AWS::ELB::LoadBalancer)
     end
 
     it 'returns nil if instance can\'t be removed from its load balancer' do
       subject.attach(instance.id, elb.id)
-      elb.class.any_instance.stub :deregister_instances
+      elb.class.any_instance.should_receive(:deregister_instances).and_raise(RuntimeError)
 
-      subject.detach(instance.id).should be_nil
+      expect { subject.detach(instance.id) }.to raise_error
     end
   end
 end

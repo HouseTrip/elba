@@ -17,7 +17,7 @@ module Elba
       def config(env = :default)
         @config ||= {}.tap do |c|
           c.merge! YAML.load(File.open File.expand_path('.fog', Dir.home))[env]
-          c.merge! :region => 'eu-west-1'
+          c.merge! region: 'eu-west-1'
         end
       end
 
@@ -49,7 +49,7 @@ module Elba
 
     DESC
     option :instances, :type => :boolean, :aliases => :i
-    def list with_instances = options[:instances]
+    def list(with_instances = options[:instances])
       say "#{elbs.size} ELB found:", nil, true
       elbs.map do |elb|
         say " * #{elb.id}"
@@ -68,8 +68,21 @@ module Elba
     DESC
     option :to, :type => :string, :aliases => :t
     def attach(*instances)
-      load_balancer = options[:to]
-      instances.each { |i| attach_instance(i, load_balancer) }
+      elb = options[:to]
+      say "You must specify which ELB to use when attaching mulitple instances" unless elb
+
+      instances.map do |instance|
+        attach_instance(
+          instance,
+          elb,
+          on_success: ->(instance, lb) {
+            say "#{instance} successfully added to #{lb}", :green
+          },
+          on_failure: ->(instance, lb) {
+            say "Unable to add #{instance} to #{load_balancer}", :red
+          }
+        )
+      end
     end
 
 
@@ -80,22 +93,36 @@ module Elba
 
     DESC
     def detach(*instances)
-      instances.map {|instance| detach_instance(instance) }
+      instances.map do |instance|
+        detach_instance(
+          instance,
+          on_success: ->(instance, elb) {
+            say("#{instance} successfully detached from #{elb}", :green)
+          },
+          on_failure: ->(instance) {
+            say("Unable to detach #{instance}", :red)
+          }
+        )
+      end
     end
 
     private
-    def attach_instance(instance = nil, load_balancer = nil)
+    def attach_instance(instance, elb, options = {})
       say "You need to provide an instance ID", :red and return unless instance
 
-      if client.attach instance, load_balancer
-        say "#{instance} successfully added to #{load_balancer}", :green
+      on_success    = options.fetch(:on_success)
+      on_failure    = options.fetch(:on_failure)
+
+      if client.attach(instance, elb)
+        on_success.call(instance, elb)
       else
-        say "Unable to add #{instance} to #{load_balancer}", :red
+        on_failure.call(instance, elb)
       end
+
     rescue Client::NoLoadBalancerAvailable
       say "No ELB available", :red and return
     rescue Client::InstanceAlreadyAttached
-      say "#{instance} is already attached to #{load_balancer}", :yellow and return
+      say "#{instance} is already attached to #{elb}", :yellow and return
     rescue Client::LoadBalancerNotFound
       say "ELB not found", :yellow and return
     rescue Client::MultipleLoadBalancersAvailable
@@ -106,14 +133,16 @@ module Elba
       attach_instance instance, find_elb_from_choice(choice)
     end
 
-    def detach_instance(instance)
+    def detach_instance(instance, options = {})
       say "You need to provide an instance ID", :red and return unless instance
+      on_success = options.fetch(:on_success)
+      on_failure = options.fetch(:on_failure)
 
-      elb = client.detach instance
-      if elb
-        say "#{instance} successfully detached from #{elb}", :green
+      success = client.detach(instance)
+      if success
+        on_success.call(instance, success.id)
       else
-        say "Unable to detach #{instance}", :red
+        on_failure.call(instance)
       end
     rescue Client::LoadBalancerNotFound
       say "#{instance} isn't attached to any known ELB", :yellow and return
