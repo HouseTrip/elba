@@ -1,22 +1,24 @@
 require 'spec_helper'
 require 'elba/client'
+require 'support/mocks'
 
 describe Elba::Client do
-  let(:region)     { 'eu-west-1' }
-  let(:access)     { 'JUST_TESTING' }
-  let(:connection) { Fog::AWS::ELB.new(aws_access_key_id: access, region: region) }
+  # gives you access to
+  # - test_elb_connection: a connection to ELB
+  # - test_ec2_connection: a connection to EC2
+  # - test_region:         the region used for test, 'eu-west-1' here
+  include Elba::Mocks
 
   let(:elb) do
-    connection.tap do |c|
+    test_elb_connection.tap do |c|
       # creates an ELB if none have been created yet
-      c.create_load_balancer([region], 'elba-test') if c.load_balancers.empty?
+      c.create_load_balancer([test_region], 'elba-test') if c.load_balancers.empty?
     end.load_balancers.last
   end
 
-  let(:ec2)      { Fog::Compute::AWS.new(aws_access_key_id: access, region: region) }
-  let(:instance) { ec2.servers.create region: region }
+  let(:instance) { test_ec2_connection.servers.create region: test_region }
 
-  subject { described_class.new connection }
+  subject { described_class.new test_elb_connection }
 
   describe 'interface' do
     it 'responds to attach' do
