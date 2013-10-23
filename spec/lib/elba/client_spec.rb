@@ -48,7 +48,6 @@ describe Elba::Client do
 
       it 'raises an error if instance is already attached to the load balancer' do
         # makes sure the instance is ready before playing with it!
-        instance.wait_for { ready? }
         subject.attach(instance.id, elb.id)
 
         expect {
