@@ -1,4 +1,4 @@
-# Elba
+# Elba [![Build Status](https://travis-ci.org/HouseTrip/elba.png?branch=master)](https://travis-ci.org/HouseTrip/elba)
 
 Command-line interface for Amazon's ELB
 
