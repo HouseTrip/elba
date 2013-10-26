@@ -12,13 +12,13 @@ describe Elba::Client do
 
 
   describe '(an instance)' do
-    subject   { described_class.new(TEST_CONFIG) }
+    subject   { described_class.new(test_config) }
     let(:elb) { subject.load_balancers.first }
-    let(:ec2) { test_ec2_connection.servers.create region: TEST_CONFIG[:region] }
+    let(:ec2) { test_ec2_connection.servers.create region: test_config[:region] }
 
     before :each do
       if subject.load_balancers.empty?
-        subject.connection.create_load_balancer([TEST_CONFIG[:region]], 'elba-test')
+        subject.connection.create_load_balancer([test_config[:region]], 'elba-test')
       end
     end
 

@@ -9,9 +9,12 @@ GEM
   remote: http://housetripgems.herokuapp.com/
   specs:
     builder (3.2.2)
+    celluloid (0.15.2)
+      timers (~> 1.1.0)
     coderay (1.0.9)
     diff-lcs (1.2.4)
     excon (0.27.6)
+    ffi (1.9.0)
     fog (1.16.0)
       builder
       excon (~> 0.27.0)
@@ -24,6 +27,20 @@ GEM
       ruby-hmac
       unicode (~> 0.4.4)
     formatador (0.2.4)
+    guard (2.2.2)
+      formatador (>= 0.2.4)
+      listen (~> 2.1)
+      lumberjack (~> 1.0)
+      pry (>= 0.9.12)
+      thor (>= 0.18.1)
+    guard-rspec (3.0.2)
+      guard (>= 1.8)
+      rspec (~> 2.13)
+    listen (2.1.1)
+      celluloid (>= 0.15.2)
+      rb-fsevent (>= 0.9.3)
+      rb-inotify (>= 0.9)
+    lumberjack (1.0.4)
     method_source (0.8.2)
     mime-types (1.25)
     mini_portile (0.5.1)
@@ -40,6 +57,9 @@ GEM
     pry-nav (0.2.3)
       pry (~> 0.9.10)
     rake (10.1.0)
+    rb-fsevent (0.9.3)
+    rb-inotify (0.9.1)
+      ffi (>= 0.5.0)
     rspec (2.14.1)
       rspec-core (~> 2.14.0)
       rspec-expectations (~> 2.14.0)
@@ -51,6 +71,7 @@ GEM
     ruby-hmac (0.4.0)
     slop (3.4.6)
     thor (0.18.1)
+    timers (1.1.0)
     unicode (0.4.4)
 
 PLATFORMS
@@ -59,6 +80,7 @@ PLATFORMS
 DEPENDENCIES
   bundler
   elba!
+  guard-rspec
   pry
   pry-nav
   rake
