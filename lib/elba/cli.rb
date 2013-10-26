@@ -2,12 +2,10 @@
 
 require 'thor'
 require 'yaml'
-require 'fog'
-
 require 'elba/client'
 
 module Elba
-  # The Command Line Interface for {Elba}.
+  # The Command Line Interface for Elba.
   class Cli < Thor
     include Thor::Actions
 
@@ -23,20 +21,29 @@ module Elba
 
       # A permanent access to a Client
       def client
-        @client ||= Client.new Fog::AWS::ELB.new(config)
+        @client ||= Client.new config
       end
 
       # Helper method to store the ELBs
       def elbs
-        client.load_balancers
+        @elbs ||= client.load_balancers
+      end
+
+      def elbs_names
+        elbs.map(&:id)
       end
 
       def elbs_with_index
         elbs.map.with_index { |elb, i| [i, elb.id] }
       end
 
-      def find_elb_from_choice choice
-        elbs_with_index[choice.to_i].last
+      def from_choice(options = {})
+        name = options.fetch(:name) { elbs_with_index[options[:choice].to_i].last }
+        elbs.find { |elb| elb.id == name }
+      end
+
+      def for_choice
+        elbs_with_index.map(&:first).map(&:to_s)
       end
     end
 
@@ -68,18 +75,32 @@ module Elba
     DESC
     option :to, :type => :string, :aliases => :t
     def attach(*instances)
-      elb = options[:to]
-      say "You must specify which ELB to use when attaching mulitple instances" unless elb
+      name = options[:to]
+
+      elb = if name
+        from_choice(name: name)
+      else
+        if elbs.size == 1
+          say "Using default load balancer: #{elbs[0].id}", :yellow
+          elbs[0]
+        elsif elbs.size > 1
+          say("You must specify an ELB", :yellow)
+          print_table elbs_with_index
+          choice = ask "Use:", :yellow, limited_to: for_choice
+          from_choice(choice: choice)
+        else
+          say("No load balancer available", :red) and return
+        end
+      end
 
       instances.map do |instance|
-        attach_instance(
-          instance,
-          elb,
-          on_success: ->(instance, lb) {
-            say "#{instance} successfully added to #{lb}", :green
+        client.attach(instance, elb,
+          on_success: -> {
+            say "#{instance} successfully added to #{elb.id}", :green
           },
-          on_failure: ->(instance, lb) {
-            say "Unable to add #{instance} to #{load_balancer}", :red
+          on_failure: ->(reason) {
+            say "Unable to attach #{instance} to #{elb.id}", :red
+            say "Reason: #{reason}", :yellow
           }
         )
       end
@@ -93,60 +114,21 @@ module Elba
 
     DESC
     def detach(*instances)
-      instances.map do |instance|
-        detach_instance(
-          instance,
-          on_success: ->(instance, elb) {
-            say("#{instance} successfully detached from #{elb}", :green)
-          },
-          on_failure: ->(instance) {
-            say("Unable to detach #{instance}", :red)
-          }
-        )
+      elbs.select { |elb| (elb.instances & instances).any? }.tap do |target|
+        say("Unable to find an elb for #{instances.join(', ')}", :yellow) and return if target.empty?
+
+        target.map do |elb|
+          client.detach(instances, elb,
+            on_success: -> {
+              say "#{instances.join(', ')} successfully detached from #{elb.id}", :green
+            },
+            on_failure: ->(reason) {
+              say "Unable to detach #{instances.join(', ')} from #{elb.id}", :red
+              say "Reason: #{reason}", :yellow
+            }
+          )
+        end
       end
     end
-
-    private
-    def attach_instance(instance, elb, options = {})
-      say "You need to provide an instance ID", :red and return unless instance
-
-      on_success    = options.fetch(:on_success)
-      on_failure    = options.fetch(:on_failure)
-
-      if client.attach(instance, elb)
-        on_success.call(instance, elb)
-      else
-        on_failure.call(instance, elb)
-      end
-
-    rescue Client::NoLoadBalancerAvailable
-      say "No ELB available", :red and return
-    rescue Client::InstanceAlreadyAttached
-      say "#{instance} is already attached to #{elb}", :yellow and return
-    rescue Client::LoadBalancerNotFound
-      say "ELB not found", :yellow and return
-    rescue Client::MultipleLoadBalancersAvailable
-      say "More than one ELB available, pick one in the list", :yellow
-      print_table elbs_with_index
-      choice = ask "Use:", :yellow, :limited_to => elbs_with_index.map(&:first).map(&:to_s)
-
-      attach_instance instance, find_elb_from_choice(choice)
-    end
-
-    def detach_instance(instance, options = {})
-      say "You need to provide an instance ID", :red and return unless instance
-      on_success = options.fetch(:on_success)
-      on_failure = options.fetch(:on_failure)
-
-      success = client.detach(instance)
-      if success
-        on_success.call(instance, success.id)
-      else
-        on_failure.call(instance)
-      end
-    rescue Client::LoadBalancerNotFound
-      say "#{instance} isn't attached to any known ELB", :yellow and return
-    end
-
   end
 end
