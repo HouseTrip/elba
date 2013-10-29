@@ -62,9 +62,10 @@ describe Elba::Cli do
       end
 
       it 'which load balancer to use' do
-        allow(subject).to receive(:ask).and_return(0)
+        allow(subject).to receive(:ask).and_return("0")
 
         output.should include "You must specify an ELB"
+        output.should include "successfully"
       end
     end
 
@@ -93,7 +94,7 @@ describe Elba::Cli do
       it_should_behave_like "asking user"
 
       it 'works and reports success' do
-        allow(subject).to receive(:ask).and_return(0)
+        allow(subject).to receive(:ask).and_return("0")
 
         output.should include "#{instance1.id} successfully attached to #{elb.id}"
         output.should include "#{instance2.id} successfully attached to #{elb.id}"
@@ -106,7 +107,7 @@ describe Elba::Cli do
       end
 
       it 'which load balancer to use' do
-        allow(subject).to receive(:ask).and_return(0)
+        allow(subject).to receive(:ask).and_return("0")
 
         output.should_not include "No load balancer available"
         output.should_not include "Using default load balancer"
