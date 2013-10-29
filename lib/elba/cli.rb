@@ -87,7 +87,7 @@ module Elba
         when elbs.size > 1
           warn "You must specify an ELB"
           print_table elbs_with_index
-          choice = (ask "Use:", :yellow, limited_to: for_choice).to_i
+          choice = ask("Use:", :yellow, limited_to: for_choice).to_i
           find_elb(choice: choice)
         end
       end
