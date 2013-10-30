@@ -1,13 +1,17 @@
 # encoding: UTF-8
 
 require 'rspec'
-require 'fog' unless defined? Fog
+
+require 'elba'
+require 'support/mocks'
 
 RSpec.configure do |config|
   config.before(:each) do
-    $0 = "elba"          # Pretend we're running as 'elba'
-    ARGV.clear
-    Fog.mock!
+    # Pretend we're running as 'elba'
+    $0 = "elba"
+
+    # Tell Fog to use mocks
+    Fog.mock! unless Fog.mocking?
   end
 
   # Captures the output for analysis later

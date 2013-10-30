@@ -1,71 +1,39 @@
 # encoding: UTF-8
 
+require 'fog'
+require 'forwardable'
+
 module Elba
   class Client
-
-    class NoLoadBalancerAvailable        < StandardError; end
-    class MultipleLoadBalancersAvailable < StandardError; end
-    class LoadBalancerNotFound           < StandardError; end
-    class InstanceAlreadyAttached        < StandardError; end
-
+    extend Forwardable
     attr_reader :connection
 
-    # instances always start with i-
-    INSTANCE_MATCHER = /^(i-)/
-
-    def initialize(connection = nil)
-      raise ArgumentError.new "Missing connection" unless connection
-      @connection = connection
+    def initialize(config = {})
+      raise "Missing AWS credentials" unless valid_config?(config)
+      @connection = Fog::AWS::ELB.new(config)
     end
 
-    def load_balancers
-      @lbs ||= connection.load_balancers
+    def_delegator :connection, :load_balancers
+
+    def attach(instance, load_balancer, callbacks = {})
+      load_balancer = load_balancer.register_instances instance
+      callbacks[:on_success].call if callbacks[:on_success]
+    rescue Exception => ex
+      callbacks[:on_failure].call(ex) if callbacks[:on_failure]
     end
 
-    def attach(instance, load_balancer)
-      load_balancer || any_load_balancers?
-
-      on_elb load_balancer do |elb|
-        raise InstanceAlreadyAttached if elb.instances.include? instance
-
-        elb.register_instances instance
-      end
-    end
-
-    def detach(instance)
-      on_elb instance do |elb|
-        elb.deregister_instances instance
-      end
+    def detach(instances, load_balancer, callbacks = {})
+      load_balancer = load_balancer.deregister_instances instances
+      callbacks[:on_success].call if callbacks[:on_success]
+    rescue Exception => ex
+      callbacks[:on_failure].call(ex) if callbacks[:on_failure]
     end
 
 
     private
 
-    def any_load_balancers?
-      raise NoLoadBalancerAvailable unless load_balancers.any?
-      raise MultipleLoadBalancersAvailable if load_balancers.size > 1
+    def valid_config?(config)
+      (config.keys & [:aws_secret_access_key, :aws_access_key_id, :region]).any?
     end
-
-    def on_elb(object)
-      elb = find_load_balancer(object)
-      raise LoadBalancerNotFound unless elb
-
-      yield elb if block_given?
-      elb
-    end
-
-    def find_load_balancer(object)
-      if is_load_balancer? object
-        load_balancers.find { |lb| lb.id =~ /#{object}/ }
-      else
-        load_balancers.find { |lb| lb.instances.include? object }
-      end
-    end
-
-    def is_load_balancer?(object)
-      # negate matches an instance
-      !!!(INSTANCE_MATCHER =~ object)
-    end
-
   end
 end

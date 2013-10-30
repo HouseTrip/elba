@@ -2,12 +2,10 @@
 
 require 'thor'
 require 'yaml'
-require 'fog'
-
 require 'elba/client'
 
 module Elba
-  # The Command Line Interface for {Elba}.
+  # The Command Line Interface for Elba.
   class Cli < Thor
     include Thor::Actions
 
@@ -23,130 +21,104 @@ module Elba
 
       # A permanent access to a Client
       def client
-        @client ||= Client.new Fog::AWS::ELB.new(config)
+        @client ||= Client.new config
       end
 
       # Helper method to store the ELBs
       def elbs
-        client.load_balancers
+        @elbs ||= client.load_balancers
+      end
+
+      def elbs_names
+        elbs.map(&:id)
       end
 
       def elbs_with_index
         elbs.map.with_index { |elb, i| [i, elb.id] }
       end
 
-      def find_elb_from_choice choice
-        elbs_with_index[choice.to_i].last
+      def find_elb(options = {})
+        name = options.fetch(:name) { elbs_with_index[options[:choice]].last }
+        elbs.find { |elb| elb.id == name }
+      end
+
+      def for_choice
+        elbs_with_index.map(&:first).map(&:to_s)
+      end
+
+      def success(message = "")
+        say message, :green
+      end
+
+      def warn(message = "")
+        say message, :yellow
+      end
+
+      def error(message = "")
+        say message, :red
       end
     end
 
 
     desc "list", "Prints the list of available load balancers"
-    long_desc <<-DESC
-      Prints the list of available load balancers
-
-      With -i | --instances option, prints instances id attached to each load balancer
-
-    DESC
-    option :instances, :type => :boolean, :aliases => :i
+    option :instances, type: :boolean, aliases: :i, desc: "Prints instances id attached to each load balancer"
     def list(with_instances = options[:instances])
-      say "#{elbs.size} ELB found:", nil, true
+      say "#{elbs.size} ELB found:"
       elbs.map do |elb|
         say " * #{elb.id}"
-        elb.instances.map { |i| say "   - #{i}", :green } if with_instances
+        elb.instances.map { |i| success "   - #{i}" } if with_instances
       end
     end
 
 
-    desc "attach INSTANCE", "Attaches INSTANCE to a load balancer"
-    long_desc <<-DESC
-      Attaches an INSTANCE to a load balancer.
-      Will ask which load balancer to use if more than one available.
-
-      With -t | --to option, specifies which load balancer to attach the instance to
-
-    DESC
-    option :to, :type => :string, :aliases => :t
+    desc "attach INSTANCES", "Attaches given instances ids to a load balancer"
+    option :to, type: :string, aliases: :t, desc: "Specifies which load balancer to use"
     def attach(*instances)
-      elb = options[:to]
-      say "You must specify which ELB to use when attaching mulitple instances" unless elb
+      elb = if options[:to]
+        find_elb(name: options[:to])
+      else
+        case
+        when elbs.size == 0
+          error "No load balancer available"
+          return
+        when elbs.size == 1
+          warn "Using default load balancer: #{elbs.first.id}"
+          elbs.first
+        when elbs.size > 1
+          warn "You must specify an ELB"
+          print_table elbs_with_index
+          choice = ask("Use:", :yellow, limited_to: for_choice).to_i
+          find_elb(choice: choice)
+        end
+      end
 
       instances.map do |instance|
-        attach_instance(
-          instance,
-          elb,
-          on_success: ->(instance, lb) {
-            say "#{instance} successfully added to #{lb}", :green
-          },
-          on_failure: ->(instance, lb) {
-            say "Unable to add #{instance} to #{load_balancer}", :red
+        client.attach(instance, elb,
+          on_success: -> { success "#{instance} successfully attached to #{elb.id}" },
+          on_failure: ->(reason) {
+            error "Unable to attach #{instance} to #{elb.id}"
+            warn "Reason: #{reason}"
           }
         )
       end
     end
 
 
-    desc "detach INSTANCE", "Detach INSTANCE from a Load Balancer"
-    long_desc <<-DESC
-      Detaches an INSTANCE from its load balancer.
-      Will warn if the instance isn't attached to any ELB
-
-    DESC
+    desc "detach INSTANCES", "Detach INSTANCES from their Load Balancer"
     def detach(*instances)
-      instances.map do |instance|
-        detach_instance(
-          instance,
-          on_success: ->(instance, elb) {
-            say("#{instance} successfully detached from #{elb}", :green)
-          },
-          on_failure: ->(instance) {
-            say("Unable to detach #{instance}", :red)
-          }
-        )
+      elbs.reload.select { |elb| (elb.instances & instances).any? }.tap do |lbs|
+        warn "Unable to find any ELB to detach #{instances.join(', ')}" if lbs.empty?
+        lbs.map do |elb|
+          target_instances = elb.instances & instances
+          client.detach(target_instances, elb,
+            on_success: -> { success "#{target_instances.join(', ')} successfully detached from #{elb.id}" },
+            on_failure: ->(reason) {
+              error "Unable to detach #{target_instances.join(', ')} from #{elb.id}"
+              warn "Reason: #{reason}"
+            }
+          )
+        end
       end
     end
-
-    private
-    def attach_instance(instance, elb, options = {})
-      say "You need to provide an instance ID", :red and return unless instance
-
-      on_success    = options.fetch(:on_success)
-      on_failure    = options.fetch(:on_failure)
-
-      if client.attach(instance, elb)
-        on_success.call(instance, elb)
-      else
-        on_failure.call(instance, elb)
-      end
-
-    rescue Client::NoLoadBalancerAvailable
-      say "No ELB available", :red and return
-    rescue Client::InstanceAlreadyAttached
-      say "#{instance} is already attached to #{elb}", :yellow and return
-    rescue Client::LoadBalancerNotFound
-      say "ELB not found", :yellow and return
-    rescue Client::MultipleLoadBalancersAvailable
-      say "More than one ELB available, pick one in the list", :yellow
-      print_table elbs_with_index
-      choice = ask "Use:", :yellow, :limited_to => elbs_with_index.map(&:first).map(&:to_s)
-
-      attach_instance instance, find_elb_from_choice(choice)
-    end
-
-    def detach_instance(instance, options = {})
-      say "You need to provide an instance ID", :red and return unless instance
-      on_success = options.fetch(:on_success)
-      on_failure = options.fetch(:on_failure)
-
-      success = client.detach(instance)
-      if success
-        on_success.call(instance, success.id)
-      else
-        on_failure.call(instance)
-      end
-    rescue Client::LoadBalancerNotFound
-      say "#{instance} isn't attached to any known ELB", :yellow and return
-    end
-
   end
 end
