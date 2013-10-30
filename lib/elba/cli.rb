@@ -106,14 +106,14 @@ module Elba
 
     desc "detach INSTANCES", "Detach INSTANCES from their Load Balancer"
     def detach(*instances)
-      elbs.select { |elb| (elb.instances & instances).any? }.tap do |target|
-        warn "Unable to find an elb for #{instances.join(', ')}" and return if target.empty?
-
-        target.map do |elb|
-          client.detach(instances, elb,
-            on_success: -> { success "#{instances.join(', ')} successfully detached from #{elb.id}" },
+      elbs.reload.select { |elb| (elb.instances & instances).any? }.tap do |lbs|
+        warn "Unable to find any ELB to detach #{instances.join(', ')}" if lbs.empty?
+        lbs.map do |elb|
+          target_instances = elb.instances & instances
+          client.detach(target_instances, elb,
+            on_success: -> { success "#{target_instances.join(', ')} successfully detached from #{elb.id}" },
             on_failure: ->(reason) {
-              error "Unable to detach #{instances.join(', ')} from #{elb.id}"
+              error "Unable to detach #{target_instances.join(', ')} from #{elb.id}"
               warn "Reason: #{reason}"
             }
           )

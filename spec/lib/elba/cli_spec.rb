@@ -21,11 +21,18 @@ describe Elba::Cli do
   let(:instance2) { test_ec2_connection.servers.create region: test_config[:region] }
 
   describe 'help' do
-    it 'prints list of available commands' do
-      output = capture(:stdout) { subject.help }
 
+    let(:output) { capture(:stdout) { subject.help } }
+
+    it "can list" do
       output.should include "list"
+    end
+
+    it "can attach" do
       output.should include "attach"
+    end
+
+    it "can detach" do
       output.should include "detach"
     end
   end
@@ -174,6 +181,32 @@ describe Elba::Cli do
       it 'works and reports success' do
         output.should include "#{instance1.id}, #{instance2.id} successfully detached from #{elb.id}"
       end
+
+      it 'warn if instances not attached to any ELB' do
+        silence(:stdout) { subject.detach instance1.id, instance2.id }
+        output.should include "Unable to find any ELB to detach #{instance1.id}, #{instance2.id}"
+      end
     end
+
+    context 'with 3 instances attached to 2 ELBs' do
+      let(:instance3) { test_ec2_connection.servers.create region: test_config[:region] }
+      let(:elb2)      { subject.client.load_balancers.find { |lb| lb.id == 'elba-test-2' } }
+
+      describe 'detaching all instances at once' do
+        before do
+          subject.client.connection.create_load_balancer([test_config[:region]], 'elba-test-2')
+          silence(:stdout) { subject.client.attach(instance2.id, elb) }
+          silence(:stdout) { subject.client.attach(instance3.id, elb2) }
+        end
+
+        let(:output) { capture(:stdout) { subject.detach instance1.id, instance3.id, instance2.id } }
+
+        it 'works like a charm' do
+          output.should include "#{instance1.id}, #{instance2.id} successfully detached from #{elb.id}"
+          output.should include "#{instance3.id} successfully detached from #{elb2.id}"
+        end
+      end
+    end
+
   end
 end
