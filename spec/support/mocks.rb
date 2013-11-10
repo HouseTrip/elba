@@ -16,9 +16,5 @@ module Elba
       @ec2 ||= Fog::Compute::AWS.new(test_config)
     end
 
-    def test_client
-      Client.new test_elb_connection
-    end
-
   end
 end
