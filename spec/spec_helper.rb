@@ -1,7 +1,6 @@
 # encoding: UTF-8
 
 require 'rspec'
-
 require 'elba'
 require 'support/mocks'
 
