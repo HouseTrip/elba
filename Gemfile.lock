@@ -6,7 +6,7 @@ PATH
       thor
 
 GEM
-  remote: http://housetripgems.herokuapp.com/
+  remote: https://rubygems.org/
   specs:
     builder (3.2.2)
     celluloid (0.15.2)
