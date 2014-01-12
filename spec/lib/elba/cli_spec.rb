@@ -38,26 +38,38 @@ describe Elba::Cli do
   end
 
   describe 'list' do
-    it 'prints the list of available ELB' do
-      output = capture(:stdout) {
-        subject.list
-      }
+    let(:options) { '' }
+    let(:output)  { capture(:stdout) { subject.list(options) } }
 
+    it 'prints the list of available ELB' do
       output.should include "1 ELB found"
       output.should include " * #{elb.id}"
     end
 
     context '--instances' do
+      let(:options) { '--instances' }
+
       it 'prints instances attached to each load balancer' do
         elb.stub instances: [instance1.id]
-
-        output = capture(:stdout) {
-          subject.list('--instances')
-        }
 
         output.should include "1 ELB found"
         output.should include " * #{elb.id}"
         output.should include "  - #{instance1.id}"
+      end
+    end
+
+    context '--full' do
+      let(:options) { '--full' }
+      before do
+        instance1.wait_for { :ready? }
+      end
+
+      it 'prints instance name and id attached to each load balancer' do
+        elb.stub instances: [instance1.id]
+
+        output.should include "1 ELB found"
+        output.should include " * #{elb.id}"
+        output.should include "  - #{instance1.id} | #{instance1.dns_name} | #{instance1.availability_zone}"
       end
     end
   end
