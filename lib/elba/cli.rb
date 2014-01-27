@@ -29,6 +29,10 @@ module Elba
         @elbs ||= client.load_balancers
       end
 
+      def servers
+        @servers ||= client.servers
+      end
+
       def elbs_names
         elbs.map(&:id)
       end
@@ -62,11 +66,30 @@ module Elba
 
     desc "list", "Prints the list of available load balancers"
     option :instances, type: :boolean, aliases: :i, desc: "Prints instances id attached to each load balancer"
-    def list(with_instances = options[:instances])
-      say "#{elbs.size} ELB found:"
-      elbs.map do |elb|
-        say " * #{elb.id}"
-        elb.instances.map { |i| success "   - #{i}" } if with_instances
+    option :format, type: :string, aliases: :f, desc: "Format the output: instances"
+    long_desc <<-EOS
+      `elba list` will print out the list of available ELB
+      You can optionally specify the format of the output:
+      - instances: will display the instance ids attached to each ELB
+      - full: will display the full information about each instance (id, public dns, availability zone)
+    EOS
+    def list(format = options[:format])
+      if elbs.size > 0
+        say "#{elbs.size} ELB found:"
+        elbs.map do |elb|
+          say " * #{elb.id}"
+          output = servers.select {|srv| elb.instances.include?(srv.id) }.map.with_index do |srv, i|
+            [i, srv.id, srv.tags["Name"], srv.dns_name]
+            # if srv.state == "running"
+            #   success(msg)
+            # else
+            #   error(msg)
+            # end
+          end
+          print_table output
+        end
+      else
+        warn "No ELB available"
       end
     end
 
