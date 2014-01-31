@@ -14,12 +14,11 @@ describe Elba::Client do
   describe '(an instance)' do
     subject   { described_class.new(test_config) }
     let(:elb) { subject.load_balancers.first }
-    let(:ec2) { test_ec2_connection.servers.create region: test_config[:region] }
+    let(:ec2) { subject.servers.create region: test_config[:region] }
 
     before :each do
-      if subject.load_balancers.empty?
-        subject.connection.create_load_balancer([test_config[:region]], 'elba-test')
-      end
+      subject.load_balancers.collect(&:destroy)
+      subject.elb.create_load_balancer([test_config[:region]], 'elba-test')
     end
 
 
@@ -28,9 +27,12 @@ describe Elba::Client do
         expect(subject).to respond_to(:load_balancers)
       end
 
-      it 'is delegated to the connection' do
-        expect(subject.connection).to receive(:load_balancers)
+      it 'is delegated to elb' do
+        allow(elb).to receive(:load_balancers).and_return(true)
+        subject.stub elb: elb
+
         subject.load_balancers
+        expect(elb).to have_received(:load_balancers)
       end
     end
 

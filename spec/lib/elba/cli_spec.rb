@@ -4,21 +4,21 @@ require 'elba/cli'
 describe Elba::Cli do
   include Elba::Mocks
 
+  let(:elb)        { subject.elbs.first }
+  let(:instance1)  { subject.client.servers.create region: test_config[:region] }
+  let(:instance2)  { subject.client.servers.create region: test_config[:region] }
+
   before :each do
     # Use test config
-    subject.stub config: test_config
+    subject.stub(config: test_config, client: test_client)
 
     # Create an ELB
-    subject.client.connection.create_load_balancer([test_config[:region]], 'elba-test')
+    subject.client.elb.create_load_balancer([test_config[:region]], 'elba-test')
   end
 
   after :each do
     subject.client.load_balancers.map(&:destroy)
   end
-
-  let(:elb)       { subject.elbs.first }
-  let(:instance1) { test_ec2_connection.servers.create region: test_config[:region] }
-  let(:instance2) { test_ec2_connection.servers.create region: test_config[:region] }
 
   describe 'help' do
 
@@ -62,6 +62,8 @@ describe Elba::Cli do
       let(:options) { '--full' }
       before do
         instance1.wait_for { :ready? }
+        instance1.stub tags: { 'Name' => 'web.elba.test' }
+        instance1.stub dns_name: 'eu-west1-a'
       end
 
       it 'prints instance name and id attached to each load balancer' do
@@ -69,7 +71,7 @@ describe Elba::Cli do
 
         output.should include "1 ELB found"
         output.should include " * #{elb.id}"
-        output.should include "  - #{instance1.id} | #{instance1.dns_name} | #{instance1.availability_zone}"
+        output.should include "  - #{instance1.id} | #{instance1.tags['Name']} | #{instance1.dns_name}"
       end
     end
   end
@@ -77,7 +79,7 @@ describe Elba::Cli do
   describe 'attach' do
     shared_examples_for "asking user" do
       before do
-        subject.client.connection.create_load_balancer([test_config[:region]], 'elba-test-2')
+        subject.client.elb.create_load_balancer([test_config[:region]], 'elba-test-2')
       end
 
       it 'which load balancer to use' do
@@ -122,7 +124,7 @@ describe Elba::Cli do
 
     shared_examples_for "not asking user" do
       before do
-        subject.client.connection.create_load_balancer([test_config[:region]], 'elba-test-2')
+        subject.client.elb.create_load_balancer([test_config[:region]], 'elba-test-2')
       end
 
       it 'which load balancer to use' do
@@ -206,7 +208,7 @@ describe Elba::Cli do
 
       describe 'detaching all instances at once' do
         before do
-          subject.client.connection.create_load_balancer([test_config[:region]], 'elba-test-2')
+          subject.client.elb.create_load_balancer([test_config[:region]], 'elba-test-2')
           silence(:stdout) { subject.client.attach(instance2.id, elb) }
           silence(:stdout) { subject.client.attach(instance3.id, elb2) }
         end

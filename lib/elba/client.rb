@@ -6,16 +6,16 @@ require 'forwardable'
 module Elba
   class Client
     extend Forwardable
-    attr_reader :connection, :ec2
+
+    attr_reader :config
+    attr_writer :elb, :ec2
 
     def initialize(config = {})
-      raise "Missing AWS credentials" unless valid_config?(config)
-
-      @connection = Fog::AWS::ELB.new(config)
-      @ec2        = Fog::Compute::AWS.new(config)
+      @config = config
+      raise "Missing AWS credentials" unless valid_config?
     end
 
-    def_delegator :connection, :load_balancers
+    def_delegator :elb, :load_balancers
     def_delegator :ec2, :servers
 
     def attach(instance, load_balancer, callbacks = {})
@@ -32,10 +32,18 @@ module Elba
       callbacks[:on_failure].call(ex) if callbacks[:on_failure]
     end
 
+    def elb
+      @elb ||= Fog::AWS::ELB.new(config)
+    end
+
+    def ec2
+      @ec2 ||= Fog::Compute::AWS.new(config)
+    end
+
 
     private
 
-    def valid_config?(config)
+    def valid_config?
       (config.keys & [:aws_secret_access_key, :aws_access_key_id, :region]).any?
     end
   end

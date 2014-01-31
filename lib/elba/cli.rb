@@ -78,15 +78,10 @@ module Elba
         say "#{elbs.size} ELB found:"
         elbs.map do |elb|
           say " * #{elb.id}"
-          output = servers.select {|srv| elb.instances.include?(srv.id) }.map.with_index do |srv, i|
-            [i, srv.id, srv.tags["Name"], srv.dns_name]
-            # if srv.state == "running"
-            #   success(msg)
-            # else
-            #   error(msg)
-            # end
-          end
-          print_table output
+          servers.
+            select { |srv| elb.instances.include?(srv.id) }.
+            map.with_index do |srv, i|
+            say "  - #{srv.id} | #{srv.tags['Name']} | #{srv.dns_name}"
         end
       else
         warn "No ELB available"

@@ -8,6 +8,14 @@ module Elba
       }
     end
 
+    def test_client
+      @client ||= Elba::Client.new(test_config).tap do |client|
+        client.elb = test_elb_connection
+        client.ec2 = test_ec2_connection
+      end
+
+    end
+
     def test_elb_connection
       @connection ||= Fog::AWS::ELB.new(test_config)
     end
