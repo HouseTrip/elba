@@ -62,6 +62,48 @@ describe Elba::Cli do
     end
   end
 
+  describe 'attached' do
+    let(:output)  { capture(:stdout) { perform } }
+    let(:perform) { subject.attached elb.id }
+
+    before do
+      silence(:stdout) { subject.client.attach(instance1.id, elb) }
+      silence(:stdout) { subject.client.attach(instance2.id, elb) }
+    end
+
+    it 'prints the list of instances attached to an ELB' do
+      output.should include " * #{elb.id}"
+      output.should include "  - #{instance1.id}"
+      output.should include "  - #{instance2.id}"
+    end
+
+    context 'no balancer name is passed' do
+      let(:perform) { subject.attached }
+
+      it 'exits' do
+        output.should include 'You must specify an ELB'
+      end
+    end
+
+    context "the balancer can't be found" do
+      let(:perform) { subject.attached 'yolo' }
+
+      it 'exits' do
+        output.should include 'Could not find balancer'
+      end
+    end
+
+    context '--porcelain' do
+      before do
+        subject.stub options: { porcelain: true }
+      end
+
+      it 'prints the list of instances attached to an ELB without decoration' do
+        output.should include "#{instance1.id} #{instance2.id}"
+      end
+    end
+  end
+
   describe 'attach' do
     shared_examples_for "asking user" do
       before do

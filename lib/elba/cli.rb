@@ -71,6 +71,34 @@ module Elba
     end
 
 
+    desc "attached BALANCER", "Prints the list of instances attached to a balancer"
+    option :porcelain, type: :boolean, aliases: :p, desc: "Prints the list in a machine readable format"
+    def attached(balancer_name = nil, porcelain = options[:porcelain])
+      unless balancer_name
+        error "You must specify an ELB"
+        return
+      end
+
+      elb = find_elb(name: balancer_name)
+
+      unless elb
+        error "Could not find balancer"
+        return
+      end
+
+      instances = elb.reload.instances
+
+      if porcelain
+        say instances.join(' ')
+      else
+        say " * #{elb.id}"
+        instances.each do |instance_id|
+          success "   - #{instance_id}"
+        end
+      end
+    end
+
+
     desc "attach INSTANCES", "Attaches given instances ids to a load balancer"
     option :to, type: :string, aliases: :t, desc: "Specifies which load balancer to use"
     def attach(*instances)
