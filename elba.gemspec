@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency "pry"
   s.add_development_dependency "pry-nav"
 
-  s.add_dependency "fog"
+  s.add_dependency "fog-aws"
   s.add_dependency "thor", '>= 0.15'
 
   s.files        = `git ls-files`.split("\n")
