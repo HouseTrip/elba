@@ -1,3 +1,3 @@
-source 'http://housetripgems.herokuapp.com'
+source 'https://rubygems.org'
 
 gemspec

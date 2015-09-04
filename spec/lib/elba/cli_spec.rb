@@ -156,7 +156,7 @@ describe Elba::Cli do
       end
 
       it 'which load balancer to use' do
-        allow(subject).to receive(:ask).and_return("0")
+        allow(subject).to receive(:ask)
 
         output.should_not include "No load balancer available"
         output.should_not include "Using default load balancer"

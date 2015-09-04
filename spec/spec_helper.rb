@@ -1,11 +1,13 @@
 # encoding: UTF-8
 
 require 'rspec'
-
 require 'elba'
 require 'support/mocks'
 
 RSpec.configure do |config|
+  config.color_enabled = true
+  config.formatter     = :documentation
+
   config.before(:each) do
     # Pretend we're running as 'elba'
     $0 = "elba"
