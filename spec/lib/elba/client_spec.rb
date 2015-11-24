@@ -6,7 +6,7 @@ describe Elba::Client do
 
   context '.new' do
     it 'raises an error when missing credentials' do
-      expect { described_class.new }.to raise_error
+      expect { described_class.new }.to raise_error(RuntimeError)
     end
   end
 
@@ -44,12 +44,12 @@ describe Elba::Client do
       end
 
       it '(on success) executes success callback' do
-        capture(:stdout) { perform }.should include 'yay!'
+        expect(capture(:stdout) { perform }).to include 'yay!'
       end
 
       it '(on failure) executes failure callback' do
         allow(elb).to receive(:register_instances).and_raise(Exception)
-        capture(:stdout) { perform }.should include 'doh!'
+        expect(capture(:stdout) { perform }).to include 'doh!'
       end
     end
 
@@ -67,12 +67,12 @@ describe Elba::Client do
       end
 
       it '(on success) executes success callback' do
-        capture(:stdout) { perform }.should include 'yay!'
+        expect(capture(:stdout) { perform }).to include 'yay!'
       end
 
       it '(on failure) executes failure callback' do
         allow(elb).to receive(:deregister_instances).and_raise(Exception)
-        capture(:stdout) { perform }.should include 'doh!'
+        expect(capture(:stdout) { perform }).to include 'doh!'
       end
     end
 
