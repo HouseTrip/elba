@@ -6,7 +6,7 @@ describe Elba::Cli do
 
   before :each do
     # Use test config
-    subject.stub config: test_config
+    allow(subject).to receive(:config) { test_config }
 
     # Create an ELB
     subject.client.connection.create_load_balancer([test_config[:region]], 'elba-test')
@@ -25,15 +25,15 @@ describe Elba::Cli do
     let(:output) { capture(:stdout) { subject.help } }
 
     it "can list" do
-      output.should include "list"
+      expect(output).to include "list"
     end
 
     it "can attach" do
-      output.should include "attach"
+      expect(output).to include "attach"
     end
 
     it "can detach" do
-      output.should include "detach"
+      expect(output).to include "detach"
     end
   end
 
@@ -43,21 +43,21 @@ describe Elba::Cli do
         subject.list
       }
 
-      output.should include "1 ELB found"
-      output.should include " * #{elb.id}"
+      expect(output).to include "1 ELB found"
+      expect(output).to include " * #{elb.id}"
     end
 
     context '--instances' do
       it 'prints instances attached to each load balancer' do
-        elb.stub instances: [instance1.id]
+        allow(elb).to receive(:instances) { [instance1.id] }
 
         output = capture(:stdout) {
           subject.list('--instances')
         }
 
-        output.should include "1 ELB found"
-        output.should include " * #{elb.id}"
-        output.should include "  - #{instance1.id}"
+        expect(output).to include "1 ELB found"
+        expect(output).to include " * #{elb.id}"
+        expect(output).to include "  - #{instance1.id}"
       end
     end
   end
@@ -72,16 +72,16 @@ describe Elba::Cli do
     end
 
     it 'prints the list of instances attached to an ELB' do
-      output.should include " * #{elb.id}"
-      output.should include "  - #{instance1.id}"
-      output.should include "  - #{instance2.id}"
+      expect(output).to include " * #{elb.id}"
+      expect(output).to include "  - #{instance1.id}"
+      expect(output).to include "  - #{instance2.id}"
     end
 
     context 'no balancer name is passed' do
       let(:perform) { subject.attached }
 
       it 'exits' do
-        output.should include 'You must specify an ELB'
+        expect(output).to include 'You must specify an ELB'
       end
     end
 
@@ -89,17 +89,17 @@ describe Elba::Cli do
       let(:perform) { subject.attached 'yolo' }
 
       it 'exits' do
-        output.should include 'Could not find balancer'
+        expect(output).to include 'Could not find balancer'
       end
     end
 
     context '--porcelain' do
       before do
-        subject.stub options: { porcelain: true }
+        allow(subject).to receive(:options).and_return({ porcelain: true })
       end
 
       it 'prints the list of instances attached to an ELB without decoration' do
-        output.should include "#{instance1.id} #{instance2.id}"
+        expect(output).to include "#{instance1.id} #{instance2.id}"
       end
     end
   end
@@ -113,8 +113,8 @@ describe Elba::Cli do
       it 'which load balancer to use' do
         allow(subject).to receive(:ask).and_return("0")
 
-        output.should include "You must specify an ELB"
-        output.should include "successfully"
+        expect(output).to include "You must specify an ELB"
+        expect(output).to include "successfully"
       end
     end
 
@@ -123,14 +123,14 @@ describe Elba::Cli do
       let(:output)  { capture(:stdout) { perform } }
 
       it 'exits if no ELB available' do
-        subject.stub elbs: []
+        allow(subject).to receive(:elbs) { [] }
 
-        output.should include "No load balancer available"
+        expect(output).to include "No load balancer available"
       end
 
       it 'uses default ELB when only 1 available' do
-        output.should include "Using default load balancer: #{elb.id}"
-        output.should include "#{instance1.id} successfully attached to #{elb.id}"
+        expect(output).to include "Using default load balancer: #{elb.id}"
+        expect(output).to include "#{instance1.id} successfully attached to #{elb.id}"
       end
 
       it_should_behave_like "asking user"
@@ -145,8 +145,8 @@ describe Elba::Cli do
       it 'works and reports success' do
         allow(subject).to receive(:ask).and_return("0")
 
-        output.should include "#{instance1.id} successfully attached to #{elb.id}"
-        output.should include "#{instance2.id} successfully attached to #{elb.id}"
+        expect(output).to include "#{instance1.id} successfully attached to #{elb.id}"
+        expect(output).to include "#{instance2.id} successfully attached to #{elb.id}"
       end
     end
 
@@ -158,16 +158,16 @@ describe Elba::Cli do
       it 'which load balancer to use' do
         allow(subject).to receive(:ask)
 
-        output.should_not include "No load balancer available"
-        output.should_not include "Using default load balancer"
-        output.should_not include "You must specify an ELB"
+        expect(output).to_not include "No load balancer available"
+        expect(output).to_not include "Using default load balancer"
+        expect(output).to_not include "You must specify an ELB"
         expect(subject).to_not have_received(:ask)
       end
     end
 
     context '--to elb instance1' do
       let(:perform) do
-        subject.stub options: {to: elb.id}
+        allow(subject).to receive(:options).and_return({ to: elb.id })
         subject.attach instance1.id
       end
 
@@ -176,13 +176,13 @@ describe Elba::Cli do
       it_should_behave_like "not asking user"
 
       it 'works and reports success' do
-        output.should include "#{instance1.id} successfully attached to #{elb.id}"
+        expect(output).to include "#{instance1.id} successfully attached to #{elb.id}"
       end
     end
 
     context '--to elb instance1 instance2' do
       let(:perform) do
-        subject.stub options: {to: elb.id}
+        allow(subject).to receive(:options).and_return({ to: elb.id })
         subject.attach instance1.id, instance2.id
       end
 
@@ -191,8 +191,8 @@ describe Elba::Cli do
       it_should_behave_like "not asking user"
 
       it 'works and reports success' do
-        output.should include "#{instance1.id} successfully attached to #{elb.id}"
-        output.should include "#{instance2.id} successfully attached to #{elb.id}"
+        expect(output).to include "#{instance1.id} successfully attached to #{elb.id}"
+        expect(output).to include "#{instance2.id} successfully attached to #{elb.id}"
       end
     end
 
@@ -209,7 +209,7 @@ describe Elba::Cli do
       let(:perform) { subject.detach instance1.id }
 
       it 'works and reports success' do
-        output.should include "#{instance1.id} successfully detached from #{elb.id}"
+        expect(output).to include "#{instance1.id} successfully detached from #{elb.id}"
       end
     end
 
@@ -221,12 +221,12 @@ describe Elba::Cli do
       let(:perform) { subject.detach instance1.id, instance2.id }
 
       it 'works and reports success' do
-        output.should include "#{instance1.id}, #{instance2.id} successfully detached from #{elb.id}"
+        expect(output).to include "#{instance1.id}, #{instance2.id} successfully detached from #{elb.id}"
       end
 
       it 'warn if instances not attached to any ELB' do
         silence(:stdout) { subject.detach instance1.id, instance2.id }
-        output.should include "Unable to find any ELB to detach #{instance1.id}, #{instance2.id}"
+        expect(output).to include "Unable to find any ELB to detach #{instance1.id}, #{instance2.id}"
       end
     end
 
@@ -244,8 +244,8 @@ describe Elba::Cli do
         let(:output) { capture(:stdout) { subject.detach instance1.id, instance3.id, instance2.id } }
 
         it 'works like a charm' do
-          output.should include "#{instance1.id}, #{instance2.id} successfully detached from #{elb.id}"
-          output.should include "#{instance3.id} successfully detached from #{elb2.id}"
+          expect(output).to include "#{instance1.id}, #{instance2.id} successfully detached from #{elb.id}"
+          expect(output).to include "#{instance3.id} successfully detached from #{elb2.id}"
         end
       end
     end
