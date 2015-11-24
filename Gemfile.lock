@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    elba (0.0.6)
+    elba (0.0.7)
       fog-aws
       thor (>= 0.15)
 
